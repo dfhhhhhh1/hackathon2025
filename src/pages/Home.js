@@ -3,8 +3,11 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import axios from 'axios';
 import './Home.css';
+import Map from '../components/Map';
 
-
+import { MarkerClusterGroup } from 'react-leaflet-markercluster';
+import Skeleton from 'react-loading-skeleton'
+import 'react-loading-skeleton/dist/skeleton.css'
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -33,10 +36,28 @@ const Home = () => {
     const [states, setStates] = useState([]);
     const [descriptions, setDescriptions] = useState([]);
 
+    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState(null);
+    const [hasSearchResults, setHasSearchResults] = useState(false);
 
   
   const defaultPosition = [39.8283, -98.5795]; 
   
+  useEffect(() => {
+    const fetchData = async () => {
+      setTimeout(() => {
+        const result = {
+          title: 'Search Result Title',
+          description: 'This is the result description returned from the backend.',
+        };
+        setData(result);
+        setLoading(false);
+      }, 2000); // Simulated 2-second delay
+    };
+
+    fetchData();
+  }, []);
+
   useEffect(() => {
     fetch('http://localhost:5001/api/states')
       .then((response) => response.json())
@@ -77,10 +98,19 @@ const Home = () => {
         setIsLoading(true);
         const response = await axios.get('http://localhost:5001/api/contracts');
         
-        const contractsWithCoordinates = response.data.map(contract => ({
-          ...contract,
-                    coordinates: [contract.Latitude, contract.Longitude]
+        const contractsWithCoordinates = response.data
+        .filter(contract =>
+            contract['Contract ID'] &&
+            contract['Contract ID'].trim() !== '' &&
+            contract.Latitude && contract.Longitude &&
+            contract.Latitude.toString().trim() !== '' &&
+            contract.Longitude.toString().trim() !== ''
+        )
+        .map(contract => ({
+            ...contract,
+            coordinates: [parseFloat(contract.Latitude), parseFloat(contract.Longitude)]
         }));
+
         setContracts(contractsWithCoordinates);
         setFilteredContracts(contractsWithCoordinates);
       } catch (error) {
@@ -105,61 +135,92 @@ const Home = () => {
       minimumFractionDigits: 2
     }).format(parseFloat(value.replace(/[^0-9.-]+/g, '')));
   };
-  const handleSearch = async (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
 
-    if (query.trim() === '') {
-      setFilteredContracts(contracts);
-    } else {
-      try {
-        const response = await axios.get(`http://localhost:5001/api/contracts/search?query=${query}`);
-        const filteredWithCoordinates = response.data.map(contract => {
-          const originalContract = contracts.find(c => c['Contract ID'] === contract['Contract ID']);
-          return {
-            ...contract,
-            coordinates: originalContract ? originalContract.coordinates : defaultPosition
-          };
-        });
-        setFilteredContracts(filteredWithCoordinates);
-      } catch (error) {
-        console.error('Error searching contracts:', error);
+  const handleSearch = async (e) => {
+    setSearchQuery(e.target.value); // Update the search query state
+  
+    // Trigger API call only when Enter is pressed
+    if (e.key === 'Enter') {
+      const query = e.target.value;
+      setIsLoading(true); // Set loading to true when starting the search
+  
+      if (query.trim() === '') {
+        setFilteredContracts(contracts); // Reset to all contracts if query is empty
+        setHasSearchResults(false); // No search results
+        setIsLoading(false); // Stop loading after resetting
+      } else {
+        try {
+          const response = await axios.get(`http://localhost:5001/api/contracts/search?query=${query}`);
+          const filteredWithCoordinates = response.data
+            .filter(contract =>
+              contract.Latitude && contract.Longitude &&
+              contract.Latitude.toString().trim() !== '' &&
+              contract.Longitude.toString().trim() !== ''
+            )
+            .map(contract => {
+              const originalContract = contracts.find(c => c['Contract ID'] === contract['Contract ID']);
+              return {
+                ...contract,
+                coordinates: originalContract ? originalContract.coordinates : defaultPosition
+              };
+            });
+  
+          setFilteredContracts(filteredWithCoordinates);
+          setHasSearchResults(true); // Set to true when search results are available
+        } catch (error) {
+          console.error('Error searching contracts:', error);
+        } finally {
+          setIsLoading(false); // Stop loading after fetching search results
+        }
       }
     }
   };
+  
+  
+  
 
   
   const applyFilters = async () => {
     try {
+        setFilteredContracts([]);
       const response = await axios.get('http://localhost:5001/api/contracts', {
         params: {
           state: selectedState,
           description: selectedDescription,
-          cost: contractCost,
+          min_cost: contractCost,
           tags: selectedTags
         }
       });
-
-      const filteredWithCoordinates = response.data.map(contract => ({
-        ...contract,
-        coordinates: [contract.Latitude, contract.Longitude]
-      }));
-
+  
+      const filteredWithCoordinates = response.data
+        .filter(contract =>
+          contract.Latitude && contract.Longitude &&
+          contract.Latitude.toString().trim() !== '' &&
+          contract.Longitude.toString().trim() !== ''
+        )
+        .map(contract => ({
+          ...contract,
+          coordinates: [parseFloat(contract.Latitude), parseFloat(contract.Longitude)]
+        }));
+  
       setFilteredContracts(filteredWithCoordinates);
     } catch (error) {
       console.error('Error filtering contracts:', error);
     }
   };
+  
 
   return (
     <div className="home-container">
       <div className="search-bar">
         <input
-          type="text"
-          placeholder="Search contracts by company, ID, agency..."
-          value={searchQuery}
-          onChange={handleSearch}
+            type="text"
+            placeholder="Search contracts by company, ID, agency..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)} // Update state as you type
+            onKeyDown={handleSearch} // Handle the Enter key press to trigger search
         />
+
       </div>
       <div className="filters-container">
         <select
@@ -209,41 +270,50 @@ const Home = () => {
             <p>Loading contracts...</p>
           ) : (
             <div className="contracts-list">
-              {filteredContracts.map(contract => (
-                <div key={contract['Contract ID']} className="contract-item">
-                  <h3>{contract['Legal Business Name']}</h3>
-                  <p><strong>Contract ID:</strong> {contract['Contract ID']}</p>
-                  <p><strong>Agency:</strong> {contract['Contracting Agency']}</p>
-                  <p><strong>Value:</strong> {formatCurrency(contract['Action Obligation ($)'])}</p>
-                  <p><strong>Date Signed:</strong> {contract['Date Signed']}</p>
+              {hasSearchResults ? (
+                // Render search results if available
+                filteredContracts.map(contract => (
+                  <div key={contract['Contract ID']} className="contract-item">
+                    <h3>{contract['Legal Business Name']}</h3>
+                    <p><strong>Contract ID:</strong> {contract['Contract ID']}</p>
+                    <p><strong>Agency:</strong> {contract['Contracting Agency']}</p>
+                    <p><strong>Value:</strong> {formatCurrency(contract['Action Obligation ($)'])}</p>
+                    <p><strong>Date Signed:</strong> {contract['Date Signed']}</p>
+                  </div>
+                ))
+              ) : (
+                // Otherwise, show the full list of contracts
+                <div className="contracts-list">
+                  {contracts.map(contract => (
+                    <div key={contract['Contract ID']} className="contract-item">
+                      <h3>{contract['Legal Business Name']}</h3>
+                      <p><strong>Contract ID:</strong> {contract['Contract ID']}</p>
+                      <p><strong>Agency:</strong> {contract['Contracting Agency']}</p>
+                      <p><strong>Value:</strong> {formatCurrency(contract['Action Obligation ($)'])}</p>
+                      <p><strong>Date Signed:</strong> {contract['Date Signed']}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
-        
-        <div className="map-container">
-          <MapContainer center={defaultPosition} zoom={4} style={{ height: '100%', width: '100%' }} >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-            {filteredContracts && filteredContracts.length > 0 && filteredContracts.map(contract => (
-                <Marker key={contract['Contract ID']} position={contract.coordinates}>
-                    <Popup>
-                    <div>
-                        <h3>{contract['Legal Business Name']}</h3>
-                        <p><strong>Contract ID:</strong> {contract['Contract ID']}</p>
-                        <p><strong>Agency:</strong> {contract['Contracting Agency']}</p>
-                        <p><strong>Value:</strong> {formatCurrency(contract['Obligation ($)'])}</p>
-                    </div>
-                    </Popup>
-                </Marker>
-                ))}
 
-          </MapContainer>
+        <div className="map-container">
+          {isLoading ? (
+            <div className="skeleton-loader">
+              <div className="skeleton-map">
+                <Skeleton height={30} count={2} />
+                <Skeleton height={100} count={4} />
+              </div>
+            </div>
+          ) : (
+            // Conditionally show the map if no search results are available
+            !hasSearchResults && <Map filteredContracts={filteredContracts} />
+          )}
         </div>
       </div>
+
     </div>
   );
 };

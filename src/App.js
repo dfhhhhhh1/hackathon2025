@@ -1,15 +1,14 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
+import Header from './components/Header';  // Import the new Header component
 import './App.css';
 
 function App() {
   return (
     <Router>
       <div className="App">
-        <header className="App-header">
-          <h1>Government Contract Visualization</h1>
-        </header>
+        <Header /> {/* Use Header component */}
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
