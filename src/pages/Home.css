@@ -1,0 +1,113 @@
+.home-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  
+  .search-bar {
+    padding: 15px;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+    gap: 10px;
+    display: flex;
+  }
+  
+  .search-bar input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+  }
+  
+  .insights-toggle {
+    padding: 10px 15px;
+    background-color: #4a6fa5;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  .insights-toggle:hover {
+    background-color: #385d8a;
+  }
+  
+  .content-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  
+  .sidebar {
+    width: 350px;
+    overflow-y: auto;
+    border-right: 1px solid #ddd;
+    padding: 15px;
+  }
+  
+  .contracts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .contract-item {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .contract-item h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+  }
+  
+  .contract-item p {
+    margin: 5px 0;
+    color: #666;
+  }
+  
+
+.map-container {
+    height: 75vh;
+    width: 75%;  
+  }
+  
+  
+
+  .leaflet-container {
+    height: 100%;
+    width: 100%;
+  }
+  
+  .genai-insights, .genai-recommendations {
+    background-color: #f0f7ff;
+    border: 1px solid #cce5ff;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .genai-insights h3, .genai-recommendations h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #0056b3;
+  }
+  
+  .genai-insights p {
+    margin-bottom: 10px;
+  }
+  
+  .genai-insights ul, .genai-recommendations ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+  
+  .genai-insights li, .genai-recommendations li {
+    margin-bottom: 5px;
+  }
